@@ -1,0 +1,26 @@
+$folder = "\\db-3\1c\Копия зик алсу dbf"
+$items = Get-ChildItem -Path $folder
+$i = 1
+$curDate = (get-date).ToString("ddMMyyyy")
+$to = "\\fserv\backup\1c_db\zik_alsu_dbf" + $curDate
+$tobackup = "\\fs\backup\1c_db\zik_alu_dbf" + $curDate
+Write-Host $to
+new-item $to -itemtype directory
+foreach ($item in $items)
+{
+
+         try
+         {   
+            Write-Host $i.ToString() + $folder + $item.Name
+            $from = $folder + $item.Name
+            Copy-Item $from $to -recurse
+            Copy-Item $from $tobackup -recurse
+            $i++
+          }
+          catch
+          {
+             Write-Host $i.ToString() + $folder + $item.Name + " " +
+             $error[0]
+          }           
+      
+}
