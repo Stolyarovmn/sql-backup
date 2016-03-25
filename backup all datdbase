@@ -1,0 +1,23 @@
+[System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Smo") | out-null
+[System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.SmoExtended") | Out-Null
+[System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.ConnectionInfo") | Out-Null
+[System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.SmoEnum")
+ 
+$sqlobject = new-Object Microsoft.SqlServer.Management.Smo.Server("(local)")
+ 
+write-host "Simple Powershell script to backup all user database in MS SQL Server"
+$Databases = $sqlobject.Databases
+
+$backuppath = "D:\backup\backup_databases"
+Get-ChildItem -Path D:\backup\backup_databases -Include *.* -Recurse | foreach { $_.Delete() }
+foreach ($Database in $Databases)
+{
+ if($Database.Name -ne "tempdb" -and $Database.Name -ne "Master" -and $Database.Name -ne "Model" -and $Database.Name -ne "MSDB")
+ {
+    write-host ".... Backup in progress for " $Database.Name "...." 
+    $dbname = $Database.Name
+    $dt = get-date -format MMddyyyy-HHmm
+    Backup-SqlDatabase -ServerInstance sql-4 -Database $dbname -BackupFile "D:\backup\backup_databases\$($dbname)-$($dt).bak"
+ }
+}
+write-host "...........Finished..........."
