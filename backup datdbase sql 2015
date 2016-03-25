@@ -1,0 +1,36 @@
+[System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Smo") | out-null
+[System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.SmoExtended") | Out-Null
+[System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.ConnectionInfo") | Out-Null
+[System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.SmoEnum")
+ 
+
+write-host "Simple Powershell script to backup all user database in MS SQL Server"
+$mySrvConn = new-object Microsoft.SqlServer.Management.Common.ServerConnection
+$mySrvConn.ServerInstance="sql-1"
+$mySrvConn.LoginSecure = $false
+$mySrvConn.Login = "sa"
+$mySrvConn.Password = "1"
+$sqlobject = new-object Microsoft.SqlServer.Management.Smo.Server($mySrvConn)
+$sqlobject.ConnectionContext.StatementTimeout = 65534
+$Databases = $sqlobject.Databases
+
+$backuppath = "D:\backup\backup_databases"
+Get-ChildItem -Path D:\backup\backup_databases -Include *.* -Recurse | foreach { $_.Delete() }
+$arrValues = "master","distribution","model","msdb","tempdb","food_nadja","Food_test","food310315","buh1c83_copy","buh_smpng83_2_copy","buh_nadya","buh_td_new","Buhgalter","buhg"
+foreach ($Database in $Databases)
+{
+ if($arrValues -notcontains $Database.Name)
+ #To skip system databases
+ {
+ write-host ".... Backup in progress for " $Database.Name "...."
+ 
+ $dbname = $Database.Name
+ $dt = get-date -format MMddyyyy-HHmm
+ $dbBackup = new-object ("Microsoft.SqlServer.Management.Smo.Backup")
+ $dbBackup.Action = "Database" # For full database backup, can also use "Log" or "File"
+ $dbBackup.Database = $dbname
+ $dbBackup.Devices.AddDevice($backuppath + "\" + $dbname + "-" + $dt + ".bak", "File")
+ $dbBackup.SqlBackup($sqlobject)
+ }
+}
+write-host "...........Finished..........."
