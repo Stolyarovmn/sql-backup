@@ -1,0 +1,38 @@
+[System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Smo") | out-null
+[System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.SmoExtended") | Out-Null
+[System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.ConnectionInfo") | Out-Null
+[System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.SmoEnum")
+
+$mySrvConn = new-object Microsoft.SqlServer.Management.Common.ServerConnection
+$mySrvConn.ServerInstance="db-4"
+$mySrvConn.LoginSecure = $false
+$mySrvConn.Login = "sa"
+$mySrvConn.Password = "12345678" 
+$sqlobject = new-object Microsoft.SqlServer.Management.Smo.Server($mySrvConn)
+$sqlobject.ConnectionContext.StatementTimeout = 65534
+Write-Host $sqlobject.ConnectionContext.ConnectTimeout.ToString()
+ 
+write-host "Simple Powershell script to backup all user database in MS SQL Server"
+$Databases = $sqlobject.Databases
+Write-Host $sqlobject.Databases
+
+$backuppath = "\\db-4\c$\backup"
+Get-ChildItem -Path $backuppath -Include *.* -Recurse | foreach { $_.Delete() }
+foreach ($Database in $Databases)
+{
+ if($Database.Name -eq "delo_db")
+ #To skip system databases
+ {
+ write-host ".... Backup in progress for " $Database.Name "...."
+ 
+$dbname = $Database.Name
+ $dt = get-date -format MMddyyyy-HHmm
+ $dbBackup = new-object ("Microsoft.SqlServer.Management.Smo.Backup")
+ $dbBackup.Action = "Files" # For full database backup, can also use "Log" or "File"
+ $dbBackup.Database = $dbname
+ $dbBackup.Devices.AddDevice($backuppath + "\" + $dbname + "-" + $dt + ".bak", "File")
+ $dbBackup.SqlBackup($sqlobject)
+ break
+ }
+}
+write-host "...........Finished..........."
