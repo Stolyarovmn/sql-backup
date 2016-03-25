@@ -1,0 +1,88 @@
+#load libraries
+[System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Smo") | out-null
+[System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.SmoExtended") | Out-Null
+[System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.ConnectionInfo") | Out-Null
+[System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.SmoEnum")
+
+# Connect to the specified instance
+$srv = new-Object Microsoft.SqlServer.Management.Smo.Server("(local)")
+ 
+# Get the default file and log locations
+# (If DefaultFile and DefaultLog are empty, use the MasterDBPath and MasterDBLogPath values)
+$fileloc = $srv.Settings.DefaultFile
+$logloc = $srv.Settings.DefaultLog
+if ($fileloc.Length -eq 0) {
+    $fileloc = $srv.Information.MasterDBPath
+    }
+if ($logloc.Length -eq 0) {
+    $logloc = $srv.Information.MasterDBLogPath
+    }
+ 
+# Identify the backup file to use, and the name of the database copy to create
+# Find bak for database
+
+
+$bckfile = 'D:\backup\backup_databases\'
+$dbname = 'buhg'
+$file = ''
+
+$items = Get-ChildItem -Path $bckfile
+
+foreach ($item in $items)
+{
+
+         try
+         {   
+             if ($item.Name -like "Buhgalter*")
+             {
+               $file = $item.Name
+               break
+             }
+          }
+          catch
+          {
+            
+          }           
+      
+}
+$bckfile = $bckfile + $file
+
+ 
+# Build the physical file names for the database copy
+$dbfile = $fileloc + '\'+ $dbname + '_Data.mdf'
+$logfile = $logloc + '\'+ $dbname + '_Log.ldf'
+
+#delete file if exists 
+#If (Test-Path $dbfile) {
+#	Remove-Item $dbfile
+#}
+#If (Test-Path $logfile) {
+#	Remove-Item $logfile
+#}
+
+#drop database
+$srv.databases[$dbname].Drop()
+
+# Use the backup file name to create the backup device
+$bdi = new-object ('Microsoft.SqlServer.Management.Smo.BackupDeviceItem') ($bckfile, 'File')
+ 
+# Create the new restore object, set the database name and add the backup device
+$rs = new-object('Microsoft.SqlServer.Management.Smo.Restore')
+$rs.Database = $dbname
+$rs.Devices.Add($bdi)
+ 
+# Get the file list info from the backup file
+$fl = $rs.ReadFileList($srv)
+foreach ($fil in $fl) {
+    $rsfile = new-object('Microsoft.SqlServer.Management.Smo.RelocateFile')
+    $rsfile.LogicalFileName = $fil.LogicalName
+    if ($fil.Type -eq 'D'){
+        $rsfile.PhysicalFileName = $dbfile
+        }
+    else {
+        $rsfile.PhysicalFileName = $logfile
+        }
+    $rs.RelocateFiles.Add($rsfile)
+    }
+ 
+# Restore the database
